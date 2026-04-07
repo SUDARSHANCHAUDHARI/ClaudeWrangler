@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>ClaudeWrangler Overlay</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:    #ef4444;
+      --green:  #22c55e;
+      --dark:   #0a0a0a;
+      --radius: 14px;
+      --font:   -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    }
+
+    html, body {
+      width: 540px; height: 100px;
+      background: transparent;
+      overflow: hidden;
+      font-family: var(--font);
+      user-select: none;
+      -webkit-app-region: no-drag;
+    }
+
+    /* ── Card ── */
+    #card {
+      position: fixed;
+      inset: 8px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 20px;
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.12);
+      opacity: 0;
+      transform: translateY(16px) scale(0.97);
+      transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.34, 1.5, 0.64, 1);
+      will-change: opacity, transform;
+    }
+
+    #card.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    #card.hiding {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.97);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    /* Mode colors */
+    #card.whip  { background: rgba(180, 25, 25, 0.88); box-shadow: 0 4px 40px rgba(239,68,68,0.45); }
+    #card.praise{ background: rgba(15, 130, 55, 0.88); box-shadow: 0 4px 40px rgba(34,197,94,0.40); }
+    #card.fire  { background: rgba(12, 12, 12, 0.95);  box-shadow: 0 4px 40px rgba(0,0,0,0.70), 0 0 0 1px rgba(255,60,60,0.2); }
+
+    /* ── Left icon ── */
+    .icon {
+      font-size: 32px;
+      flex-shrink: 0;
+      animation: popIn 0.4s cubic-bezier(0.34, 1.7, 0.64, 1);
+    }
+
+    /* ── Text ── */
+    .text-block { flex: 1; min-width: 0; }
+
+    .label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 4px;
+    }
+
+    .message {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Progress bar ── */
+    .progress-bar {
+      position: absolute;
+      bottom: 8px; left: 8px; right: 8px;
+      height: 2px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.15);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 100%;
+      background: rgba(255,255,255,0.5);
+      transform-origin: left;
+      transform: scaleX(1);
+    }
+
+    /* ── Animations ── */
+    @keyframes popIn {
+      0%   { transform: scale(0.5) rotate(-15deg); }
+      70%  { transform: scale(1.2) rotate(5deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      15%     { transform: translateX(-5px) rotate(-1deg); }
+      30%     { transform: translateX(5px) rotate(1deg); }
+      45%     { transform: translateX(-4px); }
+      60%     { transform: translateX(4px); }
+      75%     { transform: translateX(-2px); }
+    }
+
+    #card.whip.visible { animation: shake 0.45s ease 0.05s; }
+  </style>
+</head>
+<body>
+  <div id="card">
+    <div class="icon" id="icon">🔴</div>
+    <div class="text-block">
+      <div class="label" id="label">WHIP</div>
+      <div class="message" id="message">Move it, Claude!</div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress"></div>
+    </div>
+  </div>
+
+  <script>
+    const CONFIG = {
+      whip:   { icon: "🔴", label: "WHIP",   cls: "whip"  },
+      praise: { icon: "🟡", label: "PRAISE", cls: "praise" },
+      fire:   { icon: "⚫", label: "FIRED",  cls: "fire"   },
+    };
+
+    const card     = document.getElementById("card");
+    const iconEl   = document.getElementById("icon");
+    const labelEl  = document.getElementById("label");
+    const msgEl    = document.getElementById("message");
+    const progress = document.getElementById("progress");
+
+    let progressAnim = null;
+
+    window.boss.onOverlayShow(({ mode, message, meta }) => {
+      const cfg = CONFIG[mode] || CONFIG.whip;
+
+      iconEl.textContent   = cfg.icon;
+      labelEl.textContent  = cfg.label;
+      msgEl.textContent    = message;
+
+      card.className = cfg.cls;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => card.classList.add("visible"));
+      });
+
+      // Progress bar drain
+      if (progressAnim) cancelAnimationFrame(progressAnim);
+      progress.style.transition = "none";
+      progress.style.transform  = "scaleX(1)";
+      requestAnimationFrame(() => {
+        progress.style.transition = `transform 3s linear`;
+        progress.style.transform  = "scaleX(0)";
+      });
+    });
+
+    window.boss.onOverlayHide(() => {
+      card.classList.add("hiding");
+      card.classList.remove("visible");
+    });
+  </script>
+</body>
+</html>

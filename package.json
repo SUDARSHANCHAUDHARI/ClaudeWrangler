@@ -1,0 +1,73 @@
+{
+  "name": "claudewrangler",
+  "version": "1.0.0",
+  "description": "Wrangle Claude Code from your menu bar — whip it, praise it, or fire it.",
+  "license": "MIT",
+  "author": {
+    "name": "SudarshanTechLabs",
+    "email": "sudarshantechlabs@gmail.com",
+    "url": "https://github.com/SUDARSHANCHAUDHARI"
+  },
+  "main": "src/main/index.js",
+  "bin": {
+    "claudewrangler": "bin/claudewrangler.js"
+  },
+  "os": ["darwin", "win32", "linux"],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "electron", "tray", "overlay", "claude",
+    "claude-code", "cli", "developer-tools", "claudewrangler"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SUDARSHANCHAUDHARI/claudewrangler.git"
+  },
+  "bugs": { "url": "https://github.com/SUDARSHANCHAUDHARI/claudewrangler/issues" },
+  "homepage": "https://github.com/SUDARSHANCHAUDHARI/claudewrangler#readme",
+  "scripts": {
+    "start":     "electron .",
+    "dev":       "NODE_ENV=development electron .",
+    "pack":      "npm pack",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder -mwl",
+    "gen:icons": "node assets/icons/generate.js"
+  },
+  "files": [
+    "src/",
+    "assets/",
+    "bin/",
+    "README.md"
+  ],
+  "dependencies": {
+    "electron": "^33.0.0",
+    "electron-store": "^10.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.sudarshantechlabs.claudewrangler",
+    "productName": "ClaudeWrangler",
+    "directories": { "output": "dist" },
+    "files": ["src/**/*", "assets/**/*", "bin/**/*"],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icons/icon.icns",
+      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
+      "darkModeSupport": true
+    },
+    "win": {
+      "icon": "assets/icons/icon.ico",
+      "target": [{ "target": "nsis" }]
+    },
+    "linux": {
+      "icon": "assets/icons/",
+      "target": [{ "target": "AppImage" }, { "target": "deb" }],
+      "category": "Development"
+    }
+  }
+}

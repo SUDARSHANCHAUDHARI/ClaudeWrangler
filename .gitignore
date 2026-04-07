@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+*.tgz
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude-plugin-config.json
+
+# Env / secrets — never commit
+.env
+.env.local
+*.env
+secrets.*
+credentials.*
+
+# Logs
+*.log

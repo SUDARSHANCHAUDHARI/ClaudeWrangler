@@ -32,3 +32,6 @@ credentials.*
 # Logs
 *.log
 PLAN.md
+
+# graphify knowledge graph
+graphify-out/

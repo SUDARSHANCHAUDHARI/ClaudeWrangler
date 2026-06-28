@@ -149,9 +149,9 @@ claudewrangler/
 
 ---
 
-## Built By
+## Author
 
-**SudarshanTechLabs** — Solo Android developer, Bangkok 🇹🇭  
+Built by **Sudarshan Chaudhari** — SudarshanTechLabs.  
 [github.com/SUDARSHANCHAUDHARI](https://github.com/SUDARSHANCHAUDHARI)
 
 ---

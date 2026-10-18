@@ -9,9 +9,6 @@ const { execSync, exec } = require("child_process");
 
 const PLATFORM = process.platform;
 
-// Patterns that match Claude Code processes
-const CLAUDE_PATTERNS = ["claude", "@anthropic-ai/claude-code", "claude-code"];
-
 // ── Process detection ─────────────────────────────────────────────────────────
 
 /**
@@ -30,18 +27,39 @@ function findClaudePIDs() {
   }
 }
 
+/**
+ * True only for the Claude Code CLI: the executable (argv[0]) is named
+ * `claude`/`claude.exe`, or node is running the @anthropic-ai/claude-code package.
+ * Case-sensitive on macOS/Linux so the Claude desktop app (`.../MacOS/Claude`) never matches.
+ * Windows paths are case-insensitive, so that branch lowercases and instead excludes the
+ * desktop app by its install folder and Electron helpers by `--type=`.
+ * shortcut: unquoted argv[0] paths containing spaces (ps output) are not matched, upgrade to `ps -o comm=` if needed.
+ * shortcut: desktop-app exclusion knows only the AnthropicClaude and WindowsApps folders, extend if it installs elsewhere.
+ */
+function isClaudeCodeCommand(command, windows = PLATFORM === "win32") {
+  const cmd = windows ? command.trim().toLowerCase() : command.trim();
+  // Windows quotes argv[0] when its path has spaces ("C:\Program Files\nodejs\node.exe")
+  const tokens = (cmd.match(/"[^"]*"|\S+/g) || []).map((t) => t.replace(/"/g, ""));
+  const [exe = "", script = ""] = tokens;
+  const name = exe.split(/[\\/]/).pop();
+  const isNode = name === "node" || name === "node.exe";
+  if (isNode) return script.replace(/\\/g, "/").includes("@anthropic-ai/claude-code/");
+  if (name === "claude") return true;
+  if (name !== "claude.exe") return false;
+  if (!windows) return true;
+  const isDesktopApp = /\\(anthropicclaude|windowsapps)\\/.test(exe) || tokens.some((t) => t.startsWith("--type="));
+  return !isDesktopApp;
+}
+
 function findPIDsUnix() {
   const lines = execSync("ps aux", { encoding: "utf8", stdio: ["pipe","pipe","ignore"] })
     .split("\n");
 
   const pids = [];
   for (const line of lines) {
-    const lower = line.toLowerCase();
-    const matchesClaude = CLAUDE_PATTERNS.some((p) => lower.includes(p));
-    // Exclude our own electron process
-    const isUs = lower.includes("claudewrangler") || lower.includes("electron");
-    if (matchesClaude && !isUs) {
-      const parts = line.trim().split(/\s+/);
+    const parts = line.trim().split(/\s+/);
+    // ps aux: 10 fixed columns, then the full command line
+    if (isClaudeCodeCommand(parts.slice(10).join(" "))) {
       const pid = parseInt(parts[1]);
       if (!isNaN(pid)) pids.push(pid);
     }
@@ -55,12 +73,15 @@ function findPIDsWindows() {
     { encoding: "utf8", stdio: ["pipe","pipe","ignore"] }
   );
   const pids = [];
-  const blocks = output.split("\r\n\r\n");
-  for (const block of blocks) {
-    const lower = block.toLowerCase();
-    if (CLAUDE_PATTERNS.some((p) => lower.includes(p))) {
-      const pidMatch = block.match(/ProcessId=(\d+)/i);
-      if (pidMatch) pids.push(parseInt(pidMatch[1]));
+  // /format:list prints CommandLine= then ProcessId= per process (lines end \r\r\n when piped)
+  let commandLine = "";
+  for (const line of output.split(/\r*\n/)) {
+    if (line.startsWith("CommandLine=")) {
+      commandLine = line.slice("CommandLine=".length);
+    } else if (line.startsWith("ProcessId=")) {
+      const pid = parseInt(line.slice("ProcessId=".length));
+      if (!isNaN(pid) && isClaudeCodeCommand(commandLine, true)) pids.push(pid);
+      commandLine = "";
     }
   }
   return pids;
@@ -89,14 +110,6 @@ function interrupt() {
     } catch (_) {}
   }
 
-  // Windows fallback
-  if (PLATFORM === "win32" && sent === 0) {
-    exec(
-      'wmic process where "commandline like \'%claude%\'" call terminate',
-      () => {}
-    );
-  }
-
   return sent;
 }
 
@@ -109,22 +122,13 @@ function kill() {
 
   for (const pid of pids) {
     try {
-      process.kill(pid, "SIGKILL");
+      if (PLATFORM === "win32") {
+        execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" });
+      } else {
+        process.kill(pid, "SIGKILL");
+      }
       killed++;
     } catch (_) {}
-  }
-
-  // Platform-level fallbacks
-  if (PLATFORM === "darwin" || PLATFORM === "linux") {
-    try {
-      execSync("pkill -9 -f 'claude' 2>/dev/null || true");
-    } catch (_) {}
-  } else if (PLATFORM === "win32") {
-    exec("taskkill /F /IM node.exe /FI \"WINDOWTITLE eq claude*\"", () => {});
-    exec(
-      'wmic process where "commandline like \'%claude%\'" delete',
-      () => {}
-    );
   }
 
   return killed;
@@ -178,6 +182,7 @@ function typeIntoTerminal(message) {
 
 module.exports = {
   findClaudePIDs,
+  isClaudeCodeCommand,
   isClaudeRunning,
   interrupt,
   kill,

@@ -38,3 +38,6 @@ graphify-out/
 
 # Local AI task notes
 CLAUDE_TASKS.md
+
+# repoguard scan output
+repoguard-results/
